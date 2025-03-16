@@ -1,8 +1,10 @@
 package api
 
 import (
+	"fmt"
 	"github.com/MoWan-inc/aqua/pkg/domain"
 	"github.com/MoWan-inc/aqua/pkg/util/object"
+	"strings"
 )
 
 type QueryRequest struct {
@@ -37,5 +39,52 @@ func DeleteFor(model domain.Indexer) *DeleteRequest {
 }
 
 func (r *QueryRequest) Validate() error {
-	panic("implement me")
+	var fields map[string]any
+	if len(r.SortBy) > 0 || len(r.Fields) > 0 {
+		fields = domain.GetGormFields(object.ClassName(r.Query))
+	}
+	// sorting
+	if len(r.SortBy) > 0 {
+		if _, ok := fields[strings.TrimSpace(r.SortBy)]; !ok {
+			return fmt.Errorf("query option error, invalid sort_by in fields: %s", r.SortBy)
+		}
+	}
+	// filter
+	if len(r.Fields) > 0 {
+		filters := strings.Split(r.Fields, ",")
+		for _, filter := range filters {
+			filter = strings.TrimSpace(filter)
+			//
+			if strings.Contains(filter, ".") {
+				filterTks := strings.Split(filter, ".")
+				if len(filterTks) > 0 {
+					filter = filterTks[len(filterTks)-1]
+				}
+			}
+			if _, ok := fields[filter]; !ok {
+				return fmt.Errorf("query option error, invalid filter %s in fields: %v", filter, r.Fields)
+			}
+		}
+	}
+	return nil
+}
+
+func (r *SaveRequest) Validate() error {
+	// 数据合法
+	if v, ok := r.Indexer.(Validator); ok {
+		return v.Validate()
+	}
+	return nil
+}
+
+func (r *DeleteRequest) Validate() error {
+	// 不允许不带任何条件删除全表
+	if object.IsEmpty(r.Indexer) {
+		return fmt.Errorf("delete condition error, empty condition")
+	}
+	return nil
+}
+
+type Validator interface {
+	Validate() error
 }
