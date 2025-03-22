@@ -1,6 +1,7 @@
 package object
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -114,4 +115,12 @@ func ClassName[T any](obj T) string {
 			return t.Name()
 		}
 	}
+}
+
+func MustMarshalJSON(obj any) string {
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		panic(fmt.Sprintf("marshal any to json error %v", err))
+	}
+	return string(bytes)
 }
